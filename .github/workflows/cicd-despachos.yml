@@ -1,0 +1,61 @@
+name: CI/CD - Back Despachos
+
+# ============================================================
+# TRIGGER: Se activa al hacer push en la rama "deploy"
+# (Requisito IE4 de la evaluación)
+# ============================================================
+on:
+  push:
+    branches: [ "deploy" ]
+
+jobs:
+  build-push-deploy-despachos:
+    runs-on: ubuntu-latest
+
+    steps:
+
+      # 1. Checkout del código fuente
+      - name: Checkout código
+        uses: actions/checkout@v3
+
+      # 2. Configurar credenciales AWS desde GitHub Secrets
+      - name: Configurar credenciales AWS
+        uses: aws-actions/configure-aws-credentials@v4
+        with:
+          aws-access-key-id: ${{ secrets.AWS_ACCESS_KEY_ID }}
+          aws-secret-access-key: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
+          aws-session-token: ${{ secrets.AWS_SESSION_TOKEN }}
+          aws-region: ${{ secrets.AWS_REGION }}
+
+      # 3. Login en Amazon ECR
+      - name: Login en Amazon ECR
+        uses: aws-actions/amazon-ecr-login@v1
+
+      # 4. Build de la imagen Docker y push a ECR
+      - name: Build y Push imagen a ECR
+        run: |
+          docker build -t back-despachos .
+          docker tag back-despachos:latest ${{ secrets.ECR_REPO_URL_DESPACHOS }}:latest
+          docker push ${{ secrets.ECR_REPO_URL_DESPACHOS }}:latest
+
+      # 5. Despliegue automático en la instancia EC2 del Backend via AWS SSM
+      # SSM permite ejecutar comandos en EC2 sin necesidad de SSH ni clave privada
+      - name: Desplegar en EC2 Backend vía SSM
+        run: |
+          aws ssm send-command \
+            --instance-ids ${{ secrets.EC2_BACKEND_INSTANCE_ID }} \
+            --document-name "AWS-RunShellScript" \
+            --comment "Deploy back-despachos desde ECR" \
+            --parameters '{"commands":[
+              "set -e",
+              "aws ecr get-login-password --region ${{ secrets.AWS_REGION }} | docker login --username AWS --password-stdin ${{ secrets.ECR_REGISTRY }}",
+              "docker pull ${{ secrets.ECR_REPO_URL_DESPACHOS }}:latest",
+              "docker stop back-despachos || true",
+              "docker rm back-despachos || true",
+              "docker run -d --name back-despachos -p 8081:8081 \
+                -e SPRING_DATASOURCE_URL=${{ secrets.SPRING_DATASOURCE_URL }} \
+                -e SPRING_DATASOURCE_USERNAME=${{ secrets.MYSQL_USER }} \
+                -e SPRING_DATASOURCE_PASSWORD=${{ secrets.MYSQL_PASSWORD }} \
+                ${{ secrets.ECR_REPO_URL_DESPACHOS }}:latest"
+            ]}' \
+            --output text
