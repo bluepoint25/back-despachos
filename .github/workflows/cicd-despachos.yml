@@ -34,7 +34,7 @@ jobs:
       # 4. Build de la imagen Docker y push a ECR
       - name: Build y Push imagen a ECR
         run: |
-          docker build -t back-despachos .
+          docker build -t back-despachos Springboot-API-REST-DESPACHO
           docker tag back-despachos:latest ${{ secrets.ECR_REPO_URL_DESPACHOS }}:latest
           docker push ${{ secrets.ECR_REPO_URL_DESPACHOS }}:latest
 
