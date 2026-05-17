@@ -1,11 +1,11 @@
-name: CI/CD - Back Ventas
+name: CI/CD - Back Despachos
 
 on:
   push:
     branches: [ "deploy" ]
 
 jobs:
-  build-push-deploy-ventas:
+  build-push-deploy-despachos:
     runs-on: ubuntu-latest
 
     steps:
@@ -26,16 +26,16 @@ jobs:
 
       - name: Build y Push imagen a ECR
         run: |
-          docker build -t back-ventas Springboot-API-REST
-          docker tag back-ventas:latest ${{ secrets.ECR_REPO_URL_VENTAS }}:latest
-          docker push ${{ secrets.ECR_REPO_URL_VENTAS }}:latest
+          docker build -t back-despachos Springboot-API-REST-DESPACHO
+          docker tag back-despachos:latest ${{ secrets.ECR_REPO_URL_DESPACHOS }}:latest
+          docker push ${{ secrets.ECR_REPO_URL_DESPACHOS }}:latest
 
       - name: Desplegar en EC2 Backend vía SSM
         run: |
-          COMMANDS='["set -e","aws ecr get-login-password --region ${{ secrets.AWS_REGION }} | docker login --username AWS --password-stdin ${{ secrets.ECR_REGISTRY }}","docker pull ${{ secrets.ECR_REPO_URL_VENTAS }}:latest","docker stop back-ventas || true","docker rm back-ventas || true","docker run -d --name back-ventas -p 8082:8082 -e SPRING_DATASOURCE_URL=${{ secrets.SPRING_DATASOURCE_URL }} -e SPRING_DATASOURCE_USERNAME=${{ secrets.MYSQL_USER }} -e SPRING_DATASOURCE_PASSWORD=${{ secrets.MYSQL_PASSWORD }} ${{ secrets.ECR_REPO_URL_VENTAS }}:latest"]'
+          COMMANDS='["set -e","aws ecr get-login-password --region ${{ secrets.AWS_REGION }} | docker login --username AWS --password-stdin ${{ secrets.ECR_REGISTRY }}","docker pull ${{ secrets.ECR_REPO_URL_DESPACHOS }}:latest","docker stop back-despachos || true","docker rm back-despachos || true","docker run -d --name back-despachos -p 8081:8081 -e SPRING_DATASOURCE_URL=${{ secrets.SPRING_DATASOURCE_URL }} -e SPRING_DATASOURCE_USERNAME=${{ secrets.MYSQL_USER }} -e SPRING_DATASOURCE_PASSWORD=${{ secrets.MYSQL_PASSWORD }} ${{ secrets.ECR_REPO_URL_DESPACHOS }}:latest"]'
           aws ssm send-command \
             --instance-ids ${{ secrets.EC2_BACKEND_INSTANCE_ID }} \
             --document-name "AWS-RunShellScript" \
-            --comment "Deploy back-ventas" \
+            --comment "Deploy back-despachos" \
             --parameters commands="$COMMANDS" \
             --output text
