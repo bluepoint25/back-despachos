@@ -29,7 +29,8 @@ jobs:
         run: aws ecr get-login-password --region ${{ env.AWS_REGION }} | docker login --username AWS --password-stdin ${{ env.ECR_REGISTRY }}
 
       - name: Build imagen
-        run: docker build -t ${{ env.ECR_REGISTRY }}/${{ env.ECR_REPOSITORY }}:latest .
+        - name: Build imagen
+        run: docker build -t ${{ env.ECR_REGISTRY }}/${{ env.ECR_REPOSITORY }}:latest -f ./Dockerfile ./back-despachos
 
       - name: Push a ECR
         run: docker push ${{ env.ECR_REGISTRY }}/${{ env.ECR_REPOSITORY }}:latest
